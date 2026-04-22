@@ -1,0 +1,37 @@
+# Maven
+target/
+*.class
+*.jar
+*.war
+*.ear
+*.zip
+*.tar.gz
+*.rar
+
+# IDE
+.idea/
+*.iml
+.vscode/
+*.eclipse
+.project
+.classpath
+.settings/
+
+# Spring Boot
+*.log
+logs/
+
+# PDF output
+generated-pdfs/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+application-prod.properties
+
+# Temp
+tmp/
+temp/
