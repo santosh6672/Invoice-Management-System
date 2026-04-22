@@ -1,152 +1,191 @@
-# 📄 Invoice Generation System
+# Invoice Management System
 
-A full-featured automated invoice management system built with **Java Spring Boot**, featuring PDF generation, email notifications, payment tracking, and scheduled recurring invoices.
-
----
-
-## ✨ Features
-
-| Feature | Details |
-|---|---|
-| **Invoice Management** | Create, send, track, and cancel invoices with full lifecycle management |
-| **PDF Generation** | Professional PDF invoices generated with iText + Thymeleaf templates |
-| **Email Notifications** | Automated emails for invoice delivery, payment confirmations, reminders |
-| **Payment Tracking** | Track DRAFT → SENT → PAID → OVERDUE status transitions |
-| **Recurring Invoices** | Weekly, Monthly, Quarterly, or Annual auto-generated invoices |
-| **Scheduled Jobs** | Daily overdue checks, recurring invoice processing, payment reminders |
-| **Client Management** | Full CRUD for clients with invoice history |
-| **Search & Filter** | Search invoices by number or client, filter by status |
-| **Dashboard** | Revenue stats, pending/overdue amounts, recent invoices |
-| **Security** | Spring Security authentication, per-user invoice isolation |
+A Spring Boot backend for automated invoice generation, client management,
+and payment tracking. Built with production patterns — async processing,
+scheduled automation, Flyway migrations, and PDF/email delivery.
 
 ---
 
-## 🏗️ Tech Stack
-
-- **Backend**: Java 17, Spring Boot 3.2
-- **Templates**: Thymeleaf (web UI + email + PDF)
-- **PDF**: iText 8 + html2pdf
-- **Database**: H2 (dev) / PostgreSQL (production)
-- **Migrations**: Flyway
-- **Email**: Spring Mail (JavaMailSender)
-- **Scheduler**: Spring `@Scheduled`
-- **Security**: Spring Security 6
-- **Build**: Maven
+## Architecture
+com.invoicesystem/
+├── config/
+│   ├── AsyncConfig.java          # Thread pool for async email/PDF tasks
+│   ├── DataInitializer.java      # Seeds baseline data on startup
+│   └── SecurityConfig.java       # Spring Security — form login + API access
+├── controller/
+│   ├── ClientApiController.java
+│   └── InvoiceApiController.java
+├── dto/
+│   ├── ClientDto.java
+│   └── InvoiceDto.java
+├── model/
+│   ├── Invoice.java              # Status: DRAFT → SENT → PAID → OVERDUE
+│   ├── InvoiceItem.java          # Line items, auto-calculates totals
+│   ├── Client.java               # Contact info, payment terms
+│   └── User.java                 # ADMIN / USER roles
+├── repository/
+│   ├── InvoiceRepository.java    # Batch updates, aggregation, search queries
+│   ├── ClientRepository.java
+│   └── UserRepository.java
+├── scheduler/
+│   └── InvoiceScheduler.java     # Midnight, 6AM, 9AM automated jobs
+└── service/
+├── InvoiceService.java       # Core business logic, recurring engine
+├── ClientService.java
+├── EmailService.java         # Async SMTP via @Async
+└── PdfGenerationService.java # HTML → PDF via iText7/html2pdf
 
 ---
 
-## 🚀 Getting Started
+## How It Works
+
+### Invoice Lifecycle
+Invoices move through a defined status workflow managed by `InvoiceService`:
+DRAFT → SENT → PAID
+↓
+OVERDUE (set automatically by scheduler)
+
+Invoice numbers follow the format `INV-YYYY-XXXX`.
+Tax and discount calculations happen at the service layer.
+Line item totals are auto-calculated as `quantity * unitPrice`.
+
+### Recurring Invoices
+`InvoiceService` includes a recurring engine that clones invoice templates
+based on configured intervals (Weekly, Monthly, etc.) and auto-sends them.
+Triggered daily at 6 AM by the scheduler.
+
+### Automated Scheduling
+Three scheduled jobs run without manual intervention:
+
+| Time | Job |
+|------|-----|
+| Midnight | Marks overdue invoices via batch DB update |
+| 6 AM | Generates and sends recurring invoices |
+| 9 AM (Weekdays) | Sends payment reminders for upcoming due dates |
+
+### Email & PDF
+- `EmailService` uses `@Async` so SMTP calls never block the main thread
+- Emails rendered as HTML via Thymeleaf templates
+- `PdfGenerationService` converts the same Thymeleaf templates to
+  PDF using iText7/html2pdf
+- Both run on a dedicated thread pool configured in `AsyncConfig`
+
+### Data Access
+`InvoiceRepository` includes custom queries beyond standard CRUD:
+- `markOverdueInvoices` — batch status update in a single transaction
+  using `@Modifying` + `@Query`
+- `sumTotalByUserAndStatus` — aggregated financial metrics for dashboards
+- Case-insensitive search across invoice numbers and client names
+
+---
+
+## Tech Stack
+
+| Layer | Technology |
+|-------|-----------|
+| Language | Java 17+ |
+| Framework | Spring Boot 3.2.3 |
+| Security | Spring Security |
+| ORM | Spring Data JPA / Hibernate |
+| Database | PostgreSQL |
+| Migrations | Flyway |
+| Templating | Thymeleaf |
+| PDF | iText7 / html2pdf |
+| Email | JavaMailSender |
+| Scheduling | Spring Scheduler |
+| Boilerplate | Lombok |
+| Build | Maven |
+
+---
+
+## Database Migrations
+
+Flyway runs migrations automatically on startup.
+V1__init_schema.sql   — tables, indexes, constraints
+V2__seed_data.sql     — seed clients for local development
+
+---
+
+## API Endpoints
+
+### Invoices
+GET    /api/invoices           — list all invoices
+GET    /api/invoices/{id}      — get by id
+POST   /api/invoices           — create invoice
+PUT    /api/invoices/{id}      — update invoice
+DELETE /api/invoices/{id}      — delete invoice
+
+### Clients
+GET    /api/clients            — list all clients
+GET    /api/clients/{id}       — get by id
+POST   /api/clients            — create client
+PUT    /api/clients/{id}       — update client
+DELETE /api/clients/{id}       — delete client
+
+---
+
+## Running Locally
 
 ### Prerequisites
 - Java 17+
-- Maven 3.8+
+- PostgreSQL
+- Maven
 
-### Run locally (H2 in-memory)
+### Steps
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/invoice-system.git
-cd invoice-system
+git clone https://github.com/santosh6672/Invoice-Management-System.git
+cd Invoice-Management-System
+```
+
+Configure your database in `src/main/resources/application.properties`:
+
+```properties
+spring.datasource.url=jdbc:postgresql://localhost:5432/invoicedb
+spring.datasource.username=your_username
+spring.datasource.password=your_password
+spring.mail.host=smtp.gmail.com
+spring.mail.port=587
+spring.mail.username=your_email
+spring.mail.password=your_app_password
+```
+
+Run:
+
+```bash
 mvn spring-boot:run
 ```
 
-Open `http://localhost:8080`
-
-**Default credentials:** `admin` / `admin123`
-
-### H2 Console (dev)
-`http://localhost:8080/h2-console`
+Flyway runs V1 and V2 automatically on first startup.
+`DataInitializer` seeds client data if the database is empty.
 
 ---
 
-## ⚙️ Configuration
+## Security
 
-### Email (application.properties)
-```properties
-spring.mail.host=smtp.gmail.com
-spring.mail.port=587
-spring.mail.username=YOUR_EMAIL
-spring.mail.password=YOUR_APP_PASSWORD
-```
-
-> For Gmail: enable 2FA and generate an [App Password](https://myaccount.google.com/apppasswords)
-
-### Production (PostgreSQL)
-
-```bash
-mvn spring-boot:run -Dspring-boot.run.profiles=prod \
-  -DDB_HOST=localhost \
-  -DDB_NAME=invoicedb \
-  -DDB_USERNAME=postgres \
-  -DDB_PASSWORD=yourpassword \
-  -DMAIL_USERNAME=you@gmail.com \
-  -DMAIL_PASSWORD=app_password
-```
+- Form-based login for management UI
+- `/api/**` endpoints open for external frontend integration
+- CSRF disabled on API paths for non-browser clients
+- User roles: `ADMIN`, `USER`
 
 ---
 
-## 📁 Project Structure
+## In Progress
 
-```
-src/
-├── main/
-│   ├── java/com/invoicesystem/
-│   │   ├── controller/       # MVC Controllers
-│   │   ├── service/          # Business Logic
-│   │   │   ├── InvoiceService.java
-│   │   │   ├── PdfGenerationService.java
-│   │   │   └── EmailService.java
-│   │   ├── scheduler/        # Scheduled Jobs
-│   │   ├── repository/       # JPA Repositories
-│   │   ├── model/            # JPA Entities
-│   │   ├── dto/              # Data Transfer Objects
-│   │   └── config/           # Security & Async Config
-│   └── resources/
-│       ├── templates/
-│       │   ├── invoice/      # Invoice HTML templates
-│       │   ├── client/       # Client HTML templates
-│       │   ├── email/        # Email templates
-│       │   └── fragments/    # Navbar, etc.
-│       ├── static/           # CSS, JS
-│       └── db/migration/     # Flyway SQL migrations
-└── test/
-    └── java/com/invoicesystem/service/
-```
+Active development on the following modules:
+
+- **Accounts Receivable (AR) Agent** — classifies overdue invoices
+  into tiers (7d / 30d / 90d+), selects reminder strategy per tier,
+  logs every agent action with full audit trail
+- **Invoice Reconciliation (IR)** — matches incoming payments to
+  invoices with partial payment handling and mismatch detection
+- **Real-time Chat** — WebSocket dispute resolution between
+  clients and support using STOMP protocol
 
 ---
 
-## 📊 Invoice Lifecycle
+## Author
 
-```
-DRAFT ──(send)──► SENT ──(pay)──► PAID
-  │                  │
-  │             (overdue)
-  │                  ▼
-  └──(cancel)──► OVERDUE ──(pay)──► PAID
-                     │
-                (cancel)──► CANCELLED
-```
-
----
-
-## 🕐 Scheduled Jobs
-
-| Job | Schedule | Description |
-|---|---|---|
-| Overdue Check | Daily at midnight | Marks SENT invoices past due date as OVERDUE |
-| Recurring Invoices | Daily at 6 AM | Auto-creates and sends due recurring invoices |
-| Payment Reminders | Weekdays at 9 AM | Sends email reminders for invoices due within 3 days |
-| Weekly Summary | Mondays at 8 AM | Hook for weekly admin reports |
-
----
-
-## 🧪 Running Tests
-
-```bash
-mvn test
-```
-
----
-
-## 📝 License
-
-MIT License
+Santosh Kuruventi
+B.Tech CSE (AI/ML)
+[GitHub](https://github.com/santosh6672)
