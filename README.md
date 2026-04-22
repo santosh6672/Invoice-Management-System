@@ -6,34 +6,7 @@ scheduled automation, Flyway migrations, and PDF/email delivery.
 
 ---
 
-## Architecture
-com.invoicesystem/
-├── config/
-│   ├── AsyncConfig.java          # Thread pool for async email/PDF tasks
-│   ├── DataInitializer.java      # Seeds baseline data on startup
-│   └── SecurityConfig.java       # Spring Security — form login + API access
-├── controller/
-│   ├── ClientApiController.java
-│   └── InvoiceApiController.java
-├── dto/
-│   ├── ClientDto.java
-│   └── InvoiceDto.java
-├── model/
-│   ├── Invoice.java              # Status: DRAFT → SENT → PAID → OVERDUE
-│   ├── InvoiceItem.java          # Line items, auto-calculates totals
-│   ├── Client.java               # Contact info, payment terms
-│   └── User.java                 # ADMIN / USER roles
-├── repository/
-│   ├── InvoiceRepository.java    # Batch updates, aggregation, search queries
-│   ├── ClientRepository.java
-│   └── UserRepository.java
-├── scheduler/
-│   └── InvoiceScheduler.java     # Midnight, 6AM, 9AM automated jobs
-└── service/
-├── InvoiceService.java       # Core business logic, recurring engine
-├── ClientService.java
-├── EmailService.java         # Async SMTP via @Async
-└── PdfGenerationService.java # HTML → PDF via iText7/html2pdf
+
 
 ---
 
